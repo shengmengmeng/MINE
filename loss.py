@@ -19,6 +19,27 @@ def conf_penalty(outputs):
     outputs = outputs.clamp(min=1e-12)
     probs = torch.softmax(outputs, dim=1)
     return torch.mean(torch.sum(probs.log() * probs, dim=1))
+def cross_entropy_MUL(logits, labels, reduction='mean'):
+    """
+    :param logits: shape: (N, C)
+    :param labels: shape: (N, C)
+    :param reduction: options: "none", "mean", "sum"
+    :return: loss or losses
+    """
+    N, C = logits.shape
+    assert labels.size(0) == N and labels.size(1) == C, f'label tensor shape is {labels.shape}, while logits tensor shape is {logits.shape}'
+
+    log_logits = F.log_softmax(logits, dim=1)
+    losses = torch.sum(log_logits * labels, dim=1)  # (N)
+
+    if reduction == 'none':
+        return losses
+    elif reduction == 'mean':
+        return torch.sum(losses) / logits.size(0)
+    elif reduction == 'sum':
+        return torch.sum(losses)
+    else:
+        raise AssertionError('reduction has to be none, mean or sum')
 
 
 def entropy_loss(logits, reduction='mean'):
@@ -214,7 +235,7 @@ def active_passive_loss(logits, labels, alpha=10.0, beta=1.0, active='nce', pass
     """
     ICML 2020 - Normalized Loss Functions for Deep Learning with Noisy Labels
     https://github.com/HanxunH/Active-Passive-Losses/blob/master/loss.py
-    
+
     a loss is deﬁned “Active” if it only optimizes at q(k=y|x)=1, otherwise, a loss is deﬁned as “Passive”
 
     :param logits: shape: (N, C)
@@ -243,7 +264,7 @@ def active_passive_loss(logits, labels, alpha=10.0, beta=1.0, active='nce', pass
         raise AssertionError(f'passive loss: {passive} is not supported yet')
 
     return  alpha * active_loss + beta * passive_loss
-    
+
 
 def label_smoothing_cross_entropy(logits, labels, epsilon=0.1, reduction='none'):
     N = logits.size(0)

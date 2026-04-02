@@ -188,13 +188,13 @@ def build_lr_plan(lr, total_epochs, warmup_epochs, warmup_lr=0.1, decay='linear'
         return lr_plan
     elif decay == 'linear':
         lr_plan = warmup_lr_plan
-        lr_decay_start = 60
+        lr_decay_start = 200
         lr_plan += [lr] * (lr_decay_start - warmup_epochs)
         lr_plan += make_linear_lr(lr, total_epochs - lr_decay_start, lr * 0.00001)
         return lr_plan
     elif decay == 'cosine':
         lr_plan = warmup_lr_plan
-        lr_decay_start = 60
+        lr_decay_start = 20
         lr_plan += [lr] * (lr_decay_start - warmup_epochs)
         lr_plan += make_cosine_lr(lr, total_epochs - lr_decay_start)
         return lr_plan

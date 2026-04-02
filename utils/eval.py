@@ -59,12 +59,55 @@ def evaluate_cls_acc(dataloader, model, dev, topk=(1,)):
                 x, y,_,_ = sample
                 x, y = x.to(dev), y.to(dev)
             output = model(x)
-            logits = output['logits'] if type(output) is dict else output
+            logits = output['logits']#(output['logits'] + output['prob'])/2  if type(output) is dict else output
             loss = torch.nn.functional.cross_entropy(logits, y)
             test_loss.update(loss.item(), x.size(0))
             acc = accuracy(logits, y, topk)
             test_accuracy.update(acc[0], x.size(0))
     return {'accuracy': test_accuracy.avg, 'loss': test_loss.avg}
+def evaluate_cls_acc_twin(dataloader, model, dev, topk=(1,)):
+    model[0].eval()
+    model[1].eval()
+    test_loss = AverageMeter()
+    test_loss.reset()
+    test_accuracy = AverageMeter()
+    test_accuracy.reset()
+
+    test_loss1 = AverageMeter()
+    test_loss1.reset()
+    test_accuracy1 = AverageMeter()
+    test_accuracy1.reset()
+
+    test_accuracy2 = AverageMeter()
+    test_accuracy2.reset()
+
+    with torch.no_grad():
+        for _, sample in enumerate(tqdm(dataloader, ncols=100, ascii=' >', leave=False, desc='evaluating')):
+            if type(sample) is dict:
+                x = sample['data'].to(dev)
+                y = sample['label'].to(dev)
+            else:
+                # x, y, _ = sample
+                x, y,_,_ = sample
+                x, y = x.to(dev), y.to(dev)
+            output = model[0](x)
+            logits = output['logits'] if type(output) is dict else output
+            loss = torch.nn.functional.cross_entropy(logits, y)
+            test_loss.update(loss.item(), x.size(0))
+            acc = accuracy(logits, y, topk)
+            test_accuracy.update(acc[0], x.size(0))
+
+            output = model[1](x)
+            logits_ = output['logits'] if type(output) is dict else output
+            loss = torch.nn.functional.cross_entropy(logits_, y)
+            test_loss1.update(loss.item(), x.size(0))
+            acc = accuracy(logits_, y, topk)
+            test_accuracy1.update(acc[0], x.size(0))
+
+            acc = accuracy((logits+logits_)/2, y, topk)
+            test_accuracy2.update(acc[0], x.size(0))
+
+    return {'accuracy': [test_accuracy.avg, test_accuracy1.avg, test_accuracy2.avg], 'loss': [test_loss.avg, test_loss1.avg]}
 
 
 def evaluate_relabel_pr(given_labels, corrected_labels):

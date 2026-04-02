@@ -53,5 +53,5 @@ class IndexedImageFolder(DatasetFolder):
         if self.target_transform is not None:
             target = self.target_transform(target)
 
-        return {'index': index, 'data': sample, 'label': target}
+        return {'index': index, 'data': sample, 'label': target, 'label_true': target}
 

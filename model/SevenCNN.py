@@ -36,15 +36,18 @@ class CNN(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2)
         )
-        self.classfier_head = MLPHead(256, mlp_scale_factor=2, projection_size=n_outputs)
-        self.g = nn.Sequential(nn.Linear(256, 256, bias=False), nn.BatchNorm1d(256),
-                               nn.ReLU(inplace=True), nn.Linear(256, 128, bias=True)) #feature_dim
+        self.basic_head = MLPHead(256, mlp_scale_factor=2, projection_size=n_outputs)
+        self.partner_head = MLPHead(256, mlp_scale_factor=2, projection_size=n_outputs)
+        # self.g = nn.Sequential(nn.Linear(256, 256, bias=False), nn.BatchNorm1d(256),
+        #                        nn.ReLU(inplace=True), nn.Linear(256, 128, bias=True)) #feature_dim
 
     def forward(self, x):
         x = self.block1(x)
         x = self.block2(x)
         x = self.block3(x)
         x = x.view(x.size(0), -1)
-        g_out = self.g(x)
-        logits = self.classfier_head(x)
-        return {'logits': logits, 'features': g_out}
+
+        logits_basic = self.basic_head(x)
+        prob = self.partner_head(x)
+
+        return {'logits': logits_basic, 'prob': prob}

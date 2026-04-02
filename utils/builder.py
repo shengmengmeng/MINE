@@ -8,6 +8,8 @@ from randaugment import CIFAR10Policy, ImageNetPolicy, Cutout, RandAugment
 from data.image_folder import IndexedImageFolder
 from data.noisy_cifar import *
 import numpy as np
+from data.food101 import Food101
+from data.food101n import Food101N
 import cv2
 
 seed = 0
@@ -127,6 +129,13 @@ def build_cifar10n_dataset(root, train_transform, test_transform, noise_type, op
                                openset_ratio=openset_ratio, verbose=False)
     test_data = NoisyCIFAR10(root, train=False, transform=test_transform, download=False, noise_type='clean', closeset_ratio=closeset_ratio,
                               openset_ratio=openset_ratio, verbose=False)
+    return {'train': train_data, 'test': test_data, 'n_train_samples': len(train_data.data), 'n_test_samples': len(test_data.data)}
+
+def build_cifar100n_badlabel_dataset(root, train_transform, test_transform, noise_type, openset_ratio, closeset_ratio):
+    train_data = NoisyCIFAR_100N_badlabel(root, train=True, transform=train_transform, download=False, noise_type=noise_type, closeset_ratio=closeset_ratio,
+                               openset_ratio=openset_ratio, verbose=True)
+    test_data = NoisyCIFAR_100N_badlabel(root, train=False, transform=test_transform, download=False, noise_type='clean', closeset_ratio=closeset_ratio,
+                              openset_ratio=openset_ratio, verbose=True)
     return {'train': train_data, 'test': test_data, 'n_train_samples': len(train_data.data), 'n_test_samples': len(test_data.data)}
 
 

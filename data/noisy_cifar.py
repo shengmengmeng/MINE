@@ -2,6 +2,9 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 import torchvision
 from PIL import Image
+import json
+import pandas as pd
+
 
 
 # basic function
@@ -210,6 +213,82 @@ class NoisyCIFAR10(torchvision.datasets.CIFAR10):
             img, target, target_true = self.data[index], self.noisy_labels[index], self.train_labels[index]
         else:
             img, target, target_true  = self.data[index], self.targets[index], self.targets[index]
+
+        img = Image.fromarray(img)
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return {'index': index, 'data': img, 'label': target, 'label_true': target_true}
+
+    def __len__(self):
+        return len(self.data)
+
+    def get_sets(self):
+        if self.noise_type == 'clean':
+            return None, None, None
+        closed_set, open_set, clean_set = [], [], []
+        closeset_nb_classes = int(self.nb_classes * (1 - self.openset_noise_ratio))
+        openset_label_list = [i for i in range(closeset_nb_classes, self.nb_classes)]
+
+        for idx in range(self.data.shape[0]):
+            if self.targets[idx] in openset_label_list:
+                assert self.targets[idx] != self.noisy_labels[idx]
+                open_set.append(idx)
+            elif self.targets[idx] != self.noisy_labels[idx]:
+                assert self.targets[idx] not in openset_label_list
+                closed_set.append(idx)
+            else:
+                clean_set.append(idx)
+
+        return closed_set, open_set, clean_set
+
+class NoisyCIFAR_100N_badlabel(torchvision.datasets.CIFAR100):
+    def __init__(self, root, train=True, transform=None, target_transform=None, download=False,
+                 noise_type='clean', closeset_ratio=0.0, openset_ratio=0.2, random_state=0, verbose=True):
+        super().__init__(root, train=train, transform=transform, target_transform=target_transform,
+                         download=download)
+        if not train:
+            assert noise_type == 'clean', f'In test mode, noise_type should be clean, but got {noise_type}!'
+
+        self.noise_type = noise_type
+        self.nb_classes = max(self.targets) + 1
+        self.closeset_noise_rate = closeset_ratio
+        self.openset_noise_ratio = openset_ratio
+        num_samples = len(self.data)
+        if self.train and (noise_type != 'clean'):
+            # train_labels = np.asarray([[self.targets[i]] for i in range(len(self.targets))])
+            # noisy_labels, self.actual_noise_rate = noisify_dataset(self.nb_classes, train_labels, noise_type, closeset_ratio,
+            #                                                        openset_ratio, random_state, verbose)
+            self.train_labels = self.targets
+            # json.load(open(noise_file, "r"))
+            if noise_type == 'IDN':
+                self.noisy_labels = list(pd.read_csv('./data/idn_cifar100_r'+str(self.closeset_noise_rate)+'.csv')['label_noisy'].values.astype(int))
+            else:
+                self.noisy_labels = json.load(open('./data/badlabels_cifar100_r'+str(self.closeset_noise_rate)+'.json','r'))
+            self.noise_or_not = np.transpose(self.noisy_labels) == np.transpose(self.train_labels)
+            print("noise rate is "+str(1-(sum(self.noise_or_not)/len(self.noise_or_not))))
+        else:
+            new_data = []
+            new_targets = []
+            for i in range(num_samples):
+                label = self.targets[i]
+                if label < int(self.nb_classes * (1 - openset_ratio)):
+                    new_data.append(self.data[i])
+                    new_targets.append(label)
+            self.data = np.stack(new_data, axis=0)
+            self.targets = new_targets
+        self.num_samples = len(self.data)
+        self.samples = self.data
+
+    def __getitem__(self, index):
+        if self.noise_type != 'clean':
+            img, target, target_true = self.data[index], self.noisy_labels[index], self.train_labels[index]
+        else:
+            img, target, target_true = self.data[index], self.targets[index], self.targets[index]
 
         img = Image.fromarray(img)
 
